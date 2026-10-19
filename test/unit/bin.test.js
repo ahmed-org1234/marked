@@ -3,10 +3,12 @@ import { htmlIsEqual } from '@markedjs/testutils';
 import { resolve } from 'node:path';
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert';
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 function createMocks() {
   const mocks = {
@@ -88,6 +90,39 @@ function execMarked({ args = '', stdin = '', stdout = '', stderr = '' }) {
 }
 
 describe('bin/marked', () => {
+  describe('options', () => {
+    for (const option of ['--gfn', '--no-gfn']) {
+      it(`warns and continues for ${option}`, testInput({
+        args: [option, '-s', '# test'],
+        stdout: '<h1>test</h1>',
+        stderr: `marked: unknown option '${option}', ignored\n`,
+      }));
+    }
+
+    it('warns for every unknown option and still reads positional files', testInput({
+      args: ['--gfn', '--no-gfn', fixturePath('bin-input.md')],
+      stdout: '<h1>file</h1>',
+      stderr: "marked: unknown option '--gfn', ignored\nmarked: unknown option '--no-gfn', ignored\n",
+    }));
+
+    it('warns and still reads stdin', testInput({
+      args: ['--gfn'],
+      stdin: '# test',
+      stdout: '<h1>test</h1>',
+      stderr: "marked: unknown option '--gfn', ignored\n",
+    }));
+
+    it('--gfm is silent and enables GFM', testInput({
+      args: ['--gfm', '-s', '~~test~~'],
+      stdout: '<p><del>test</del></p>',
+    }));
+
+    it('--no-gfm is silent and disables GFM', testInput({
+      args: ['--no-gfm', '-s', '~~test~~'],
+      stdout: '<p>~~test~~</p>',
+    }));
+  });
+
   describe('string', () => {
     it('-s', testInput({
       args: ['-s', '# test'],
@@ -160,6 +195,22 @@ describe('bin/marked', () => {
 });
 
 describe('exec', () => {
+  for (const option of ['-h', '--help', '-v', '--version']) {
+    it(option, async() => {
+      const { stdout, stderr } = await execFileAsync(process.execPath, [
+        resolve(import.meta.dirname, '../../bin/marked.js'), option,
+      ], {
+        env: { ...process.env, PATH: '' },
+        timeout: 10000,
+      });
+      const help = option === '-h' || option === '--help';
+      const file = help ? 'man/marked.1.md' : 'package.json';
+      const content = await readFile(resolve(import.meta.dirname, '../..', file), 'utf8');
+      assert.strictEqual(stdout, (help ? content : JSON.parse(content).version) + '\n');
+      assert.strictEqual(stderr, '');
+    });
+  }
+
   it('stdin', execMarked({
     stdin: '# test',
     stdout: '<h1>test</h1>',
