@@ -68,7 +68,7 @@ function fixturePath(filePath) {
   return resolve(import.meta.dirname, './fixtures', filePath);
 }
 
-function execMarked({ args = '', stdin = '', stdout = '', stderr = '' }) {
+function execMarked({ args = '', stdin = '', stdout = '', stderr = '', code = 0 }) {
   const execPath = resolve(import.meta.dirname, '../../bin/marked');
   return async() => {
     let command = '';
@@ -80,10 +80,11 @@ function execMarked({ args = '', stdin = '', stdout = '', stderr = '' }) {
     if (args) {
       command += ` ${args}`;
     }
-    const res = await execAsync(command);
+    const res = await execAsync(command, { timeout: 10000 }).catch(err => err);
 
     assert.ok(await htmlIsEqual(res.stdout, stdout));
     assert.strictEqual(res.stderr, stderr);
+    assert.strictEqual(res.code ?? 0, code);
   };
 }
 
@@ -140,6 +141,35 @@ describe('bin/marked', () => {
       stdout: '<h1>file</h1>',
     }));
 
+    it('joins positional files with a blank line and parses them together in order', testInput({
+      args: [fixturePath('bin-input-first.md'), fixturePath('bin-input-second.md')],
+      stdout: '<p>First <a href="/shared">link</a>.</p>\n<p>Second paragraph.</p>',
+    }));
+
+    it('preserves reversed positional file order', testInput({
+      args: [fixturePath('bin-input-second.md'), fixturePath('bin-input-first.md')],
+      stdout: '<p>Second paragraph.</p>\n<p>First <a href="/shared">link</a>.</p>',
+    }));
+
+    for (const option of ['-i', '--input']) {
+      it(`${option} takes priority over positional files`, testInput({
+        args: [fixturePath('does-not-exist.md'), option, fixturePath('bin-input.md')],
+        stdout: '<h1>file</h1>',
+      }));
+    }
+
+    for (const option of ['-s', '--string']) {
+      it(`${option} takes priority over input and positional files`, testInput({
+        args: ['--input', fixturePath('does-not-exist.md'), option, '# string', fixturePath('does-not-exist.md')],
+        stdout: '<h1>string</h1>',
+      }));
+    }
+
+    it('empty string takes priority over positional files', testInput({
+      args: ['--string', '', fixturePath('does-not-exist.md')],
+      stdout: '\n',
+    }));
+
     it('input file not found', testInput({
       args: [fixturePath('does-not-exist.md')],
       stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
@@ -148,6 +178,12 @@ describe('bin/marked', () => {
 
     it('input file not found --input', testInput({
       args: ['--input', fixturePath('does-not-exist.md')],
+      stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
+      code: 1,
+    }));
+
+    it('missing second positional file reports its path', testInput({
+      args: [fixturePath('bin-input-first.md'), fixturePath('does-not-exist.md')],
       stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
       code: 1,
     }));
@@ -180,8 +216,14 @@ describe('exec', () => {
     stdout: '<h1>file</h1>',
   }));
 
-  it('input last file positional', execMarked({
-    args: `${fixturePath('does-not-exist.md')} ${fixturePath('bin-input.md')}`,
-    stdout: '<h1>file</h1>',
+  it('input files positional in order', execMarked({
+    args: `${fixturePath('bin-input-first.md')} ${fixturePath('bin-input-second.md')}`,
+    stdout: '<p>First <a href="/shared">link</a>.</p>\n<p>Second paragraph.</p>',
+  }));
+
+  it('missing second positional file', execMarked({
+    args: `${fixturePath('bin-input-first.md')} ${fixturePath('does-not-exist.md')}`,
+    stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
+    code: 1,
   }));
 });

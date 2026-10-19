@@ -160,7 +160,11 @@ export async function main(nodeProcess) {
         return await readFile(input, 'utf8');
       }
       if (files.length > 0) {
-        return await readFile(files.pop(), 'utf8');
+        const contents = [];
+        for (const file of files) {
+          contents.push(await readFile(file, 'utf8'));
+        }
+        return contents.join('\n\n');
       }
       return await getStdin();
     }
