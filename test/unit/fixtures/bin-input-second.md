@@ -1,0 +1,3 @@
+Second paragraph
+
+[shared]: /shared
