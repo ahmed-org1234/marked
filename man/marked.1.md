@@ -2,7 +2,7 @@
 
 ## SYNOPSIS
 
-`marked` [`-o` <output file>] [`-i` <input file>] [`-s` <markdown string>] [`-c` <config file>] [`--help`] [`--version`] [`--tokens`] [`--no-clobber`] [`--pedantic`] [`--gfm`] [`--breaks`] [`--no-etc...`] [`--silent`] [filename]
+`marked` [`-o` <output file>] [`-i` <input file>] [`-s` <markdown string>] [`-c` <config file>] [`--help`] [`--version`] [`--tokens`] [`--no-clobber`] [`--pedantic`] [`--gfm`] [`--breaks`] [`--no-etc...`] [`--silent`] [filename ...]
 
 ## DESCRIPTION
 
@@ -33,11 +33,12 @@ marked --output="hello world.html" -i in.md --no-breaks
 Specify file output. If none is specified, write to stdout.
 
 * -i, --input [input file]
-Specify file input, otherwise use last argument as input file.
+Specify file input, taking precedence over positional filenames.
+Otherwise, concatenate all positional files in the order given, separated by a blank line, and parse them as one document.
 If no input file is specified, read from stdin.
 
 * -s, --string [markdown string]
-Specify string input instead of a file.
+Specify string input, taking precedence over `--input` and positional filenames.
 
 * -c, --config [config file]
 Specify config file to use instead of the default `~/.marked.json` or `~/.marked.js` or `~/.marked/index.js`.

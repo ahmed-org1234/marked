@@ -140,6 +140,31 @@ describe('bin/marked', () => {
       stdout: '<h1>file</h1>',
     }));
 
+    it('positional files form one document in argument order', testInput({
+      args: [fixturePath('bin-input-first.md'), fixturePath('bin-input-second.md')],
+      stdout: '<h1>First</h1>\n<p><a href="/shared">shared</a></p>\n<p>First paragraph</p>\n<p>Second paragraph</p>',
+    }));
+
+    it('positional files follow reversed argument order', testInput({
+      args: [fixturePath('bin-input-second.md'), fixturePath('bin-input-first.md')],
+      stdout: '<p>Second paragraph</p>\n<h1>First</h1>\n<p><a href="/shared">shared</a></p>\n<p>First paragraph</p>',
+    }));
+
+    it('--input takes precedence over positional files', testInput({
+      args: [fixturePath('bin-input-first.md'), '--input', fixturePath('bin-input.md'), fixturePath('does-not-exist.md')],
+      stdout: '<h1>file</h1>',
+    }));
+
+    it('--string takes precedence over --input and positional files', testInput({
+      args: [fixturePath('bin-input-first.md'), '--input', fixturePath('does-not-exist.md'), '--string', '# test', fixturePath('bin-input-second.md')],
+      stdout: '<h1>test</h1>',
+    }));
+
+    it('empty --string takes precedence over positional files', testInput({
+      args: ['--string', '', fixturePath('does-not-exist.md')],
+      stdout: '\n',
+    }));
+
     it('input file not found', testInput({
       args: [fixturePath('does-not-exist.md')],
       stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
@@ -148,6 +173,12 @@ describe('bin/marked', () => {
 
     it('input file not found --input', testInput({
       args: ['--input', fixturePath('does-not-exist.md')],
+      stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
+      code: 1,
+    }));
+
+    it('missing second positional file fails without output', testInput({
+      args: [fixturePath('bin-input-first.md'), fixturePath('does-not-exist.md')],
       stderr: `marked: ${fixturePath('does-not-exist.md')}: No such file or directory`,
       code: 1,
     }));
@@ -180,8 +211,8 @@ describe('exec', () => {
     stdout: '<h1>file</h1>',
   }));
 
-  it('input last file positional', execMarked({
-    args: `${fixturePath('does-not-exist.md')} ${fixturePath('bin-input.md')}`,
-    stdout: '<h1>file</h1>',
+  it('input files positional', execMarked({
+    args: `${fixturePath('bin-input-first.md')} ${fixturePath('bin-input-second.md')}`,
+    stdout: '<h1>First</h1>\n<p><a href="/shared">shared</a></p>\n<p>First paragraph</p>\n<p>Second paragraph</p>',
   }));
 });
