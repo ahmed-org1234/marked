@@ -75,7 +75,9 @@
     "typescript": "6.0.3"
   },
   "overrides": {
-    "npm": "^11.21.1"
+    "@semantic-release/npm": {
+      "npm": "^11.21.1"
+    }
   },
   "scripts": {
     "bench": "npm run build && node test/bench.js",
